@@ -1,0 +1,86 @@
+---
+title: "ds202_HW5"
+author: "Xinyi Zhu"
+date: "4/9/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+dat <- readr::read_csv("2019_Iowa_Liquor_Sales.csv")
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(dplyr)
+```
+
+2. Data cleaning: 
+  a. extract geographic latitude and longitude from the variable `Store Location`
+```{r}
+storeLocation <- dat[, "Store Location"]
+storeLocation <- separate(storeLocation, "Store Location", into = c("latitude", "longtitude"), sep = " (?=[^ ]+$)")
+
+storeLocation$latitude<- gsub("POINT \\(", "", storeLocation$latitude)
+storeLocation$longtitude<- gsub("\\)", "", storeLocation$longtitude)
+dat$`Store Location` <- storeLocation
+a <- dat
+```
+
+  b. make sure the variables are in the correct type, by converting incorrect variable types.
+```{r}
+a$`Store Location`$latitude= as.double(a$`Store Location`$latitude)
+a$`Store Location`$longtitude= as.double(a$`Store Location`$longtitude)
+a$`Vendor Number` = as.numeric(a$`Vendor Number`)
+a$`State Bottle Cost`=as.numeric(a$`State Bottle Cost`)
+a$`Volume Sold (Gallons)`=as.numeric(a$`Volume Sold (Gallons)`)
+str(a)
+```
+
+  c. extract year, month and day from the variable `Date` as separate columns.
+```{r}
+b <- a %>% separate('Date', into = c("month","day","year"))
+head(b)
+```
+  
+3. First overview:
+  a. Plot a scatterplot of lat and long of store locations. 
+```{r,fig.width=22, fig.height=6}
+ggplot(b, aes(x=storeLocation$longtitude, y=storeLocation$latitude)) + geom_point()
+```
+
+  b. Provide a visual breakdown of the liquor category (by `Category Name`). Include volume sold in the breakdown.
+```{r,fig.width=12, fig.height=20}
+b %>%ggplot(aes(x = `Category Name`, fill = `Volume Sold (Liters)`)) + geom_bar()+ coord_flip()
+```
+
+4. Find the daily sales liquor sales in Ames in 2019. Summarize the number of sales, volume of liquor sold, and amount of money spent.
+```{r,fig.width=18, fig.height=6}
+b %>%
+  group_by(`Bottles Sold`) %>%
+  ggplot(aes(x=day, y=`Volume Sold (Liters)`)) + geom_point() +facet_wrap(~month)
+
+c <- b%>% filter(year == 2019)
+dailysale <- c%>% group_by(day,month) %>% 
+  summarise(sumBottleSold = sum(`Bottles Sold`), sumSale = sum(`Sale (Dollars)`),
+                                sumVolumeSold = sum(`Volume Sold (Liters)`)) 
+dailysale
+```
+
+5. Plot volume sold by day (use a scatterplot of volume by day and facet by month). Discover trends with the help of `geom_smooth`. Describe any patterns.
+```{r,fig.width=18, fig.height=6}
+c %>%
+  ggplot(aes(x=day, y= `Volume Sold (Liters)`)) + geom_point() + facet_wrap(~month)
+
+```
+In each month, date between 08 and 12 always have the highest peak of volume sold. Dates around festivals, such as Christmas and new year, usually have higher volume sold. The reason maybe due to the festival since they want liquor to celebrate.
+
+6. Find the dates for ISU football home games in Fall 2019. Can you see a pattern? 
+```{r,fig.width=18, fig.height=6}
+dailysale %>%
+  ggplot(aes(x = day, y = sumVolumeSold))+ geom_point() + facet_wrap(~month)
+```
+Dates for ISU football home games may hold on Sep 11th and 12th , Oct 3th and 16th, Nov 13th and 14th, and Dec 11th & 12th & 18th & 19th. Since they have higher sum of volume sold. And days between peaks always about one week.
